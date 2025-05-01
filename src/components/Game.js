@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 
 // Import our modular components
 import Player from './entities/Player';
+import Enemy from './entities/Enemy';
 import EnemyManager from './entities/EnemyManager';
 import HeartPickup from './entities/HeartPickup';
 import Platforms from './utils/Platforms';
@@ -23,7 +24,7 @@ function Game() {
         default: 'arcade',
         arcade: {
           gravity: { y: 350 }, 
-          debug: true // Set to true to see collision boundaries
+          debug: false // Set to true to see collision boundaries
         }
       },
       scene: MainScene
@@ -53,7 +54,8 @@ class MainScene extends Phaser.Scene {
     this.gameState = {
       inStartMenu: true,
       isPaused: false,
-      inPauseMenu: false
+      inPauseMenu: false,
+      isVictory: false
     };
     
     // Track visual effects
@@ -64,49 +66,10 @@ class MainScene extends Phaser.Scene {
     // Load background
     this.load.image('background', '/assets/background/background.png');
     
-    // Load heart image
-    this.load.image('heart', '/assets/objects/Heart.png');
-    
-    // Load projectiles
-    this.load.image('blast', '/assets/objects/blast.png');
-    this.load.image('enemyblast', '/assets/objects/enemyblast.png');
-    
-    // Load player sprites
-    this.load.spritesheet('ironman-idle', 
-      '/assets/characters/Player/Iron-idle.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 2 }
-    );
-    
-    this.load.spritesheet('ironman-running', 
-      '/assets/characters/Player/Iron-running.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
-    );
-    
-    this.load.spritesheet('ironman-shooting', 
-      '/assets/characters/Player/Iron-shooting.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
-    );
-    
-    this.load.spritesheet('ironman-death', 
-      '/assets/characters/Player/Iron-death.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 5 }
-    );
-    
-    // Load enemy sprites
-    this.load.spritesheet('enemy-idle', 
-      '/assets/characters/Enemy/Enemy-idle.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 2 }
-    );
-    
-    this.load.spritesheet('enemy-running', 
-      '/assets/characters/Enemy/Enemy-runnning.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
-    );
-    
-    this.load.spritesheet('enemy-shooting', 
-      '/assets/characters/Enemy/Enemy-shoot.png',
-      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
-    );
+    // Load entity assets using their static preload methods
+    Player.preloadAssets(this);
+    Enemy.preloadAssets(this);
+    HeartPickup.preloadAssets(this);
   }
   
   create() {
@@ -200,8 +163,7 @@ class MainScene extends Phaser.Scene {
       a: Phaser.Input.Keyboard.KeyCodes.A,
       d: Phaser.Input.Keyboard.KeyCodes.D,
       w: Phaser.Input.Keyboard.KeyCodes.W,
-      e: Phaser.Input.Keyboard.KeyCodes.E, // Shooting
-      l: Phaser.Input.Keyboard.KeyCodes.L  // Test lose life
+      e: Phaser.Input.Keyboard.KeyCodes.E  // Shooting
     });
     
     // Cursor keys (alternative controls)
@@ -230,28 +192,11 @@ class MainScene extends Phaser.Scene {
     // Subtract an additional offset to ensure the player is clearly above the platform
     const groundLevel = platformY - (platformHeight / 2) - 35;
     
-    console.log("Platform Y:", platformY, "Ground Level:", groundLevel);
-    
     // Create player at precise ground level
     this.player = new Player(this, 400, groundLevel);
     
     // Add collision between player and platforms
     this.platforms.addPlayerCollider(this.player);
-    
-    // Add collision between enemy bullets and player
-    if (this.enemyBullets) {
-      this.physics.add.overlap(this.player.sprite, this.enemyBullets, (playerSprite, bullet) => {
-        // Skip if player is invulnerable
-        if (this.player.playerData.isInvulnerable) return;
-        
-        // Player takes damage
-        this.player.loseLife(1);
-        this.updateLivesDisplay();
-        
-        // Destroy the bullet AFTER damage is applied (to match player bullet behavior)
-        bullet.destroy();
-      });
-    }
     
     // Set up camera to follow player
     this.setupCamera();
@@ -286,7 +231,6 @@ class MainScene extends Phaser.Scene {
         
         // Recreate the group if it somehow lost its methods
         if (!this.bullets.get || typeof this.bullets.get !== 'function') {
-          console.log("Recreating bullets group due to missing methods");
           this.bullets = this.physics.add.group({
             defaultKey: 'blast',
             maxSize: 50
@@ -309,40 +253,107 @@ class MainScene extends Phaser.Scene {
       });
     }
     
-    // Create enemy manager
+    // Create enemy manager for a single special enemy
     this.enemyManager = new EnemyManager(this, this.player);
     
-    // Get the world width from physics world
-    const worldWidth = this.physics.world.bounds.width;
-    
-    // Calculate the usable width (80% of the total width)
-    const usableWidth = worldWidth * 0.8;
-    
-    // Create enemy positions array
-    const enemyPositions = [];
-    
-    // Set the minimum and maximum X positions for enemies
-    const minX = 800; // Start enemies closer to player
-    const maxX = usableWidth;
-    
-    // Add 10 enemies spaced across the usable width
-    for (let i = 0; i < 10; i++) {
-      // Calculate x position to distribute enemies evenly across the usable width
-      const x = minX + (i * ((maxX - minX) / 9));
+    // Create enemy bullets group if needed
+    if (!this.enemyBullets) {
+      this.enemyBullets = this.physics.add.group({
+        defaultKey: 'enemyblast',
+        maxSize: 30
+      });
       
-      // All enemies at the same y position (groundLevel)
-      enemyPositions.push({ x: x, y: groundLevel });
+      // Configure enemy bullets
+      this.enemyBullets.createCallback = (bullet) => {
+        // Disable gravity
+        bullet.body.setAllowGravity(false);
+        
+        // Set enemy bullet to disappear after 1 second
+        if (this.time) {
+          this.time.delayedCall(1000, () => {
+            if (bullet && bullet.active) {
+              bullet.destroy();
+            }
+          });
+        }
+        
+        // Make enemy bullets look green
+        bullet.setTint(0x00ff00);
+      };
     }
     
-    // Setup enemies
-    this.enemyManager.setupEnemies(enemyPositions);
+    // Create just ONE special enemy with 10 lives
     
-    // Add collision between enemies and platforms
+    // Calculate map width for positioning
+    const mapWidth = this.physics.world.bounds.width;
+    
+    // Get Hulk position from Enemy class
+    const hulkPosition = Enemy.getHulkPosition(mapWidth, groundLevel);
+    
+    // Create a single enemy at 90% of map width and specify it's a special boss
+    const enemy = this.enemyManager.createEnemy(
+      hulkPosition.x, 
+      hulkPosition.y, 
+      hulkPosition.leftBoundary, 
+      hulkPosition.rightBoundary, 
+      true
+    );
+    
+    // Modify its health to have 10 lives and enable health bar
+    if (enemy && enemy.enemyData) {
+      // Health and health bar should already be set by the Enemy constructor
+    }
+    
+    // Store this special enemy reference
+    this.specialEnemy = enemy;
+    
+    // Create multiple regular enemies throughout the level
+    
+    // Get enemy positions from Enemy class
+    const enemyPositions = Enemy.getRegularEnemyPositions(mapWidth, groundLevel);
+    
+    // Ensure we have exactly 10 regular enemies
+    console.assert(enemyPositions.length === 10, "There should be exactly 10 regular enemies");
+    
+    // Create the regular enemies
+    enemyPositions.forEach((pos, index) => {
+      this.enemyManager.createEnemy(pos.x, pos.y, pos.leftBoundary, pos.rightBoundary, false);
+    });
+    
+    // Add collision between the enemy and platforms
     this.platforms.addEnemyCollider(this.enemyManager.group);
     
-    // Set up bullet collisions
-    this.enemyManager.setupBulletCollisions(this.player);
-    this.enemyManager.setupPlayerBulletCollisions(this.bullets);
+    // Set up player-enemy bullet collisions
+    if (this.player && this.player.sprite && this.enemyBullets) {
+      this.physics.add.overlap(this.player.sprite, this.enemyBullets, (playerSprite, bullet) => {
+        // Skip if player is invulnerable
+        if (this.player.playerData.isInvulnerable) return;
+        
+        // Player takes damage
+        this.player.loseLife(1);
+        this.updateLivesDisplay();
+        
+        // Destroy the bullet
+        bullet.destroy();
+      });
+    }
+    
+    // Set up bullet-enemy collisions
+    if (this.bullets && this.enemyManager && this.enemyManager.group) {
+      this.physics.add.overlap(this.bullets, this.enemyManager.group, (bullet, enemySprite) => {
+        // Destroy the bullet
+        if (bullet && bullet.active) {
+          bullet.destroy();
+        }
+        
+        // Find the enemy that was hit
+        const enemy = enemySprite.enemyComponent;
+        if (enemy && typeof enemy.loseLife === 'function') {
+          // Apply damage
+          enemy.loseLife(1);
+        }
+      });
+    }
     
     // Resume physics
     this.physics.resume();
@@ -381,13 +392,32 @@ class MainScene extends Phaser.Scene {
     }
   }
   
+  victory() {
+    // Pause physics
+    this.physics.pause();
+    
+    // Set victory state
+    this.gameState.isVictory = true;
+    
+    // Display victory text
+    if (this.hud) {
+      this.hud.showVictory();
+      
+      // Also call again with a delay to ensure it works in all scenarios
+      this.time.delayedCall(1000, () => {
+        if (this.hud) {
+          this.hud.showVictory();
+        }
+      });
+    }
+  }
+  
   createHeartPickup(x, y) {
     return new HeartPickup(this, x, y, this.player);
   }
   
   restartGame() {
     // Instead of restarting, just return to the main menu
-    console.log("Game restart requested - redirecting to main menu");
     this.returnToMainMenu();
   }
   
@@ -460,14 +490,10 @@ class MainScene extends Phaser.Scene {
       this.player.sprite.setTint(0xaaccff);
     }
     
-    // Pause enemy animations and apply tint
-    if (this.enemyManager && this.enemyManager.enemies) {
-      this.enemyManager.enemies.forEach(enemy => {
-        if (enemy && enemy.sprite) {
-          enemy.sprite.anims.pause();
-          enemy.sprite.setTint(0xaaccff);
-        }
-      });
+    // Pause special enemy if it exists
+    if (this.specialEnemy && this.specialEnemy.sprite) {
+      this.specialEnemy.sprite.anims.pause();
+      this.specialEnemy.sprite.setTint(0xaaccff);
     }
     
     // Pause all bullets
@@ -502,14 +528,10 @@ class MainScene extends Phaser.Scene {
       this.player.sprite.anims.resume();
     }
     
-    // Resume enemy animations and remove tints
-    if (this.enemyManager && this.enemyManager.enemies) {
-      this.enemyManager.enemies.forEach(enemy => {
-        if (enemy && enemy.sprite) {
-          enemy.sprite.clearTint();
-          enemy.sprite.anims.resume();
-        }
-      });
+    // Resume special enemy if it exists
+    if (this.specialEnemy && this.specialEnemy.sprite) {
+      this.specialEnemy.sprite.clearTint();
+      this.specialEnemy.sprite.anims.resume();
     }
     
     // Resume all animations
@@ -521,8 +543,6 @@ class MainScene extends Phaser.Scene {
   
   returnToMainMenu() {
     try {
-      console.log("Returning to main menu");
-      
       // Hide the pause menu
       if (this.menu) {
         this.menu.hidePauseMenu();
@@ -536,8 +556,6 @@ class MainScene extends Phaser.Scene {
       // Clear bullet references first to avoid errors
       if (this.enemyBullets) {
         try {
-          console.log("Cleaning up enemy bullets reference");
-          
           // Safe clear of enemy bullets
           if (typeof this.enemyBullets.getChildren === 'function') {
             const bullets = this.enemyBullets.getChildren();
@@ -563,8 +581,6 @@ class MainScene extends Phaser.Scene {
       // Same for player bullets
       if (this.bullets) {
         try {
-          console.log("Cleaning up player bullets reference");
-          
           // Safe clear of player bullets
           if (typeof this.bullets.getChildren === 'function') {
             const bullets = this.bullets.getChildren();
@@ -597,7 +613,8 @@ class MainScene extends Phaser.Scene {
       this.gameState = {
         inStartMenu: true,
         isPaused: false,
-        inPauseMenu: false
+        inPauseMenu: false,
+        isVictory: false
       };
       
       // Clear any remaining flashEffects
@@ -649,7 +666,10 @@ class MainScene extends Phaser.Scene {
       this.player = null;
     }
     
-    // Clean up enemies
+    // Clean up special enemy reference
+    this.specialEnemy = null;
+    
+    // Clean up enemy manager
     if (this.enemyManager) {
       this.enemyManager.destroy();
       this.enemyManager = null;
@@ -674,7 +694,6 @@ class MainScene extends Phaser.Scene {
         if (this.bullets && typeof this.bullets.clear === 'function') {
           this.bullets.clear(true, true);
         } else {
-          console.log('Bullets group missing clear method, destroying directly');
           this.bullets.destroy && this.bullets.destroy();
         }
         this.bullets = null;
@@ -691,7 +710,6 @@ class MainScene extends Phaser.Scene {
         if (this.enemyBullets && typeof this.enemyBullets.clear === 'function') {
           this.enemyBullets.clear(true, true);
         } else {
-          console.log('Enemy bullets group missing clear method, destroying directly');
           this.enemyBullets.destroy && this.enemyBullets.destroy();
         }
         this.enemyBullets = null;
@@ -711,7 +729,12 @@ class MainScene extends Phaser.Scene {
       
       // Handle game over restart with ENTER key 
       if (playerIsGameOver && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
-        console.log("ENTER key pressed in game over state");
+        this.returnToMainMenu();
+        return;
+      }
+      
+      // Handle victory screen ENTER key press
+      if (this.gameState.isVictory && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
         this.returnToMainMenu();
         return;
       }
@@ -731,14 +754,14 @@ class MainScene extends Phaser.Scene {
         return;
       }
       
-      // Skip all updates if in menu, paused, or game over
+      // Skip all updates if in menu, paused, game over, or victory
       if (this.gameState.inStartMenu || this.gameState.inPauseMenu || 
-          playerIsGameOver || playerIsDeathAnimating) {
+          playerIsGameOver || playerIsDeathAnimating || this.gameState.isVictory) {
         return;
       }
       
-      // Update enemies
-      if (this.enemyManager) {
+      // Update all enemies through the enemy manager
+      if (this.enemyManager && this.enemyManager.update) {
         this.enemyManager.update();
       }
       
@@ -750,12 +773,6 @@ class MainScene extends Phaser.Scene {
         if (this.keys && Phaser.Input.Keyboard.JustDown(this.keys.e) && 
             this.player.playerData && !this.player.playerData.isShooting) {
           this.player.shoot(this.bullets);
-        }
-        
-        // Test losing a life with the 'L' key
-        if (this.keys && Phaser.Input.Keyboard.JustDown(this.keys.l)) {
-          this.player.loseLife();
-          this.updateLivesDisplay();
         }
         
         // Check if player fell off the world

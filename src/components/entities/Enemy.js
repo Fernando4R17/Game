@@ -2,7 +2,97 @@ import Phaser from 'phaser';
 import HeartPickup from './HeartPickup';
 
 class Enemy {
-  constructor(scene, x, y, leftBoundary, rightBoundary) {
+  /**
+   * Static method to preload all enemy assets
+   * @param {Phaser.Scene} scene - The scene to load assets into
+   */
+  static preloadAssets(scene) {
+    // Load regular enemy sprites
+    scene.load.spritesheet('enemy-idle', 
+      '/assets/characters/Enemy/Enemy-idle.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 2 }
+    );
+    
+    scene.load.spritesheet('enemy-running', 
+      '/assets/characters/Enemy/Enemy-runnning.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
+    );
+    
+    scene.load.spritesheet('enemy-shooting', 
+      '/assets/characters/Enemy/Enemy-shoot.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
+    );
+    
+    // Load Hulk sprites for special enemy
+    scene.load.spritesheet('hulk-idle', 
+      '/assets/characters/Hulk/Hulk-idle.png',
+      { frameWidth: 125, frameHeight: 110, startFrame: 0, endFrame: 2 }
+    );
+    
+    scene.load.spritesheet('hulk-running', 
+      '/assets/characters/Hulk/Hulk-running.png',
+      { frameWidth: 125, frameHeight: 110, startFrame: 0, endFrame: 3 }
+    );
+    
+    scene.load.spritesheet('hulk-punching', 
+      '/assets/characters/Hulk/Hulk-punch.png',
+      { frameWidth: 125, frameHeight: 110, startFrame: 0, endFrame: 3 }
+    );
+    
+    scene.load.spritesheet('hulk-death', 
+      '/assets/characters/Hulk/Hulk-death.png',
+      { frameWidth: 125, frameHeight: 110, startFrame: 0, endFrame: 2 }
+    );
+    
+    // Load enemy projectile
+    scene.load.image('enemyblast', '/assets/objects/enemyblast.png');
+  }
+  
+  /**
+   * Get positions for regular enemies throughout the level
+   * @param {number} mapWidth - The width of the game map
+   * @param {number} groundLevel - The Y position for enemies to be placed at
+   * @returns {Array} Array of position objects for regular enemies
+   */
+  static getRegularEnemyPositions(mapWidth, groundLevel) {
+    // Define positions for 10 regular enemies (x, boundaries)
+    return [
+      // First group of enemies in the first quarter of the map
+      { x: Math.floor(mapWidth * 0.1), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.05), rightBoundary: Math.floor(mapWidth * 0.15) },
+      { x: Math.floor(mapWidth * 0.15), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.1), rightBoundary: Math.floor(mapWidth * 0.2) },
+      { x: Math.floor(mapWidth * 0.2), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.15), rightBoundary: Math.floor(mapWidth * 0.25) },
+      
+      // Second group in the second quarter of the map
+      { x: Math.floor(mapWidth * 0.3), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.25), rightBoundary: Math.floor(mapWidth * 0.35) },
+      { x: Math.floor(mapWidth * 0.4), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.35), rightBoundary: Math.floor(mapWidth * 0.45) },
+      
+      // Third group in the middle of the map
+      { x: Math.floor(mapWidth * 0.5), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.45), rightBoundary: Math.floor(mapWidth * 0.55) },
+      { x: Math.floor(mapWidth * 0.55), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.5), rightBoundary: Math.floor(mapWidth * 0.6) },
+      
+      // Fourth group guarding the approach to the boss
+      { x: Math.floor(mapWidth * 0.65), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.6), rightBoundary: Math.floor(mapWidth * 0.7) },
+      { x: Math.floor(mapWidth * 0.75), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.7), rightBoundary: Math.floor(mapWidth * 0.8) },
+      { x: Math.floor(mapWidth * 0.8), y: groundLevel, leftBoundary: Math.floor(mapWidth * 0.75), rightBoundary: Math.floor(mapWidth * 0.85) }
+    ];
+  }
+  
+  /**
+   * Get position for the Hulk boss at the end of the level
+   * @param {number} mapWidth - The width of the game map
+   * @param {number} groundLevel - The Y position for the Hulk to be placed at
+   * @returns {Object} Position object for the Hulk boss
+   */
+  static getHulkPosition(mapWidth, groundLevel) {
+    return {
+      x: Math.floor(mapWidth * 0.9),
+      y: groundLevel,
+      leftBoundary: Math.floor(mapWidth * 0.7),
+      rightBoundary: Math.floor(mapWidth * 0.95)
+    };
+  }
+
+  constructor(scene, x, y, leftBoundary, rightBoundary, isSpecialBoss = false) {
     this.scene = scene;
     this.leftBoundary = leftBoundary || (x - 200);
     this.rightBoundary = rightBoundary || (x + 200);
@@ -10,25 +100,43 @@ class Enemy {
     this.facingLeft = true;
     this.isShooting = false;
     this.lastShootTime = 0;
-    this.shootCooldown = 750; // Changed from 1500 to 750ms between shots
-    this.visionRange = 300;
-    this.followSpeed = 80;
+    
+    // Track if this is the special boss enemy
+    this.isSpecialBoss = isSpecialBoss;
+    
+    // Apply different properties for Hulk vs regular enemies
+    if (this.isSpecialBoss) {
+      // Hulk has slower attacks but stronger punch
+      this.shootCooldown = 1000; // Slower punching rate (1 second)
+      this.visionRange = 350;    // Slightly longer vision
+      this.followSpeed = 90;     // Faster to increase difficulty
+    } else {
+      // Regular enemies shoot more frequently
+      this.shootCooldown = 750;  // 0.75 seconds between shots
+      this.visionRange = 300;    // Standard vision range
+      this.followSpeed = 80;     // Regular speed
+    }
     
     // Add enemy health system
     this.enemyData = {
-      lives: 2,               // Each enemy has 2 lives
-      maxLives: 2,            // Maximum lives
-      isInvulnerable: false,  // For hit cooldown
-      invulnerableUntil: 0,   // Timestamp when invulnerability ends
-      isDead: false           // Track if enemy is dead
+      lives: isSpecialBoss ? 10 : 2,      // Special boss has 10 lives, regular enemies have 2
+      maxLives: isSpecialBoss ? 10 : 2,   // Maximum lives
+      isInvulnerable: false,             // For hit cooldown
+      invulnerableUntil: 0,              // Timestamp when invulnerability ends
+      isDead: false,                     // Track if enemy is dead
+      showHealthBar: isSpecialBoss,       // Show health bar for special boss
+      isDying: false                     // Track if enemy is dying
     };
     
     this.create(x, y);
   }
   
   create(x, y) {
+    // Determine which sprites to use based on whether this is a special boss
+    const idleKey = this.isSpecialBoss ? 'hulk-idle' : 'enemy-idle';
+    
     // Create enemy sprite
-    this.sprite = this.scene.physics.add.sprite(x, y, 'enemy-idle');
+    this.sprite = this.scene.physics.add.sprite(x, y, idleKey);
     
     // Configure enemy
     this.sprite.setScale(1.8);
@@ -49,59 +157,175 @@ class Enemy {
     this.createAnimations();
     
     // Play idle animation
-    this.sprite.anims.play('enemy-idle', true);
+    const animKey = this.isSpecialBoss ? 'hulk-idle' : 'enemy-idle';
+    this.sprite.anims.play(animKey, true);
     
     // Listen for animation completion
-    this.sprite.on('animationcomplete-enemy-shooting', () => {
-      this.isShooting = false;
-      this.sprite.anims.play('enemy-idle', true);
-    });
+    if (this.isSpecialBoss) {
+      this.sprite.on('animationcomplete-hulk-punching', () => {
+        this.isShooting = false;
+        this.sprite.anims.play('hulk-idle', true);
+      });
+      
+      // Add listener for death animation completion
+      this.sprite.on('animationcomplete-hulk-death', () => {
+        // Delay the destroy slightly to let the final frame be visible for a moment
+        this.scene.time.delayedCall(300, () => {
+          // Clean up health bar and drop heart if needed
+          this.finalCleanup();
+        });
+      });
+    } else {
+      this.sprite.on('animationcomplete-enemy-shooting', () => {
+        this.isShooting = false;
+        this.sprite.anims.play('enemy-idle', true);
+      });
+    }
+    
+    // Create health bar if needed
+    if (this.enemyData.showHealthBar) {
+      this.createHealthBar();
+    }
   }
   
   createAnimations() {
     const scene = this.scene;
     
-    // Always recreate animations to ensure they work after game restart
-    
-    // Idle animation
-    if (scene.anims.exists('enemy-idle')) {
-      scene.anims.remove('enemy-idle');
+    if (this.isSpecialBoss) {
+      // Create Hulk animations
+      
+      // Idle animation
+      if (scene.anims.exists('hulk-idle')) {
+        scene.anims.remove('hulk-idle');
+      }
+      scene.anims.create({
+        key: 'hulk-idle',
+        frames: scene.anims.generateFrameNumbers('hulk-idle', { start: 0, end: 2 }),
+        frameRate: 8,
+        repeat: -1
+      });
+      
+      // Running animation
+      if (scene.anims.exists('hulk-running')) {
+        scene.anims.remove('hulk-running');
+      }
+      scene.anims.create({
+        key: 'hulk-running',
+        frames: scene.anims.generateFrameNumbers('hulk-running', { start: 0, end: 2 }),
+        frameRate: 10,
+        repeat: -1
+      });
+      
+      // Punching animation (instead of shooting)
+      if (scene.anims.exists('hulk-punching')) {
+        scene.anims.remove('hulk-punching');
+      }
+      scene.anims.create({
+        key: 'hulk-punching',
+        frames: scene.anims.generateFrameNumbers('hulk-punching', { start: 0, end: 1 }),
+        frameRate: 12,
+        repeat: 0
+      });
+      
+      // Death animation for Hulk
+      if (scene.anims.exists('hulk-death')) {
+        scene.anims.remove('hulk-death');
+      }
+      scene.anims.create({
+        key: 'hulk-death',
+        frames: scene.anims.generateFrameNumbers('hulk-death', { start: 0, end: 2 }),
+        frameRate: 6,
+        repeat: 0
+      });
+    } else {
+      // Regular enemy animations
+      
+      // Idle animation
+      if (scene.anims.exists('enemy-idle')) {
+        scene.anims.remove('enemy-idle');
+      }
+      scene.anims.create({
+        key: 'enemy-idle',
+        frames: scene.anims.generateFrameNumbers('enemy-idle', { start: 0, end: 2 }),
+        frameRate: 8,
+        repeat: -1
+      });
+      
+      // Running animation
+      if (scene.anims.exists('enemy-running')) {
+        scene.anims.remove('enemy-running');
+      }
+      scene.anims.create({
+        key: 'enemy-running',
+        frames: scene.anims.generateFrameNumbers('enemy-running', { start: 0, end: 2 }),
+        frameRate: 10,
+        repeat: -1
+      });
+      
+      // Shooting animation
+      if (scene.anims.exists('enemy-shooting')) {
+        scene.anims.remove('enemy-shooting');
+      }
+      scene.anims.create({
+        key: 'enemy-shooting',
+        frames: scene.anims.generateFrameNumbers('enemy-shooting', { start: 0, end: 1 }),
+        frameRate: 12,
+        repeat: 0
+      });
     }
-    scene.anims.create({
-      key: 'enemy-idle',
-      frames: scene.anims.generateFrameNumbers('enemy-idle', { start: 0, end: 2 }),
-      frameRate: 8,
-      repeat: -1
-    });
+  }
+  
+  createHealthBar() {
+    // Health bar background (red)
+    this.healthBarBackground = this.scene.add.graphics();
+    this.healthBarBackground.fillStyle(0xff0000, 1);
+    this.healthBarBackground.fillRect(0, 0, 60, 8);
+    this.healthBarBackground.setDepth(3);
     
-    // Running animation
-    if (scene.anims.exists('enemy-running')) {
-      scene.anims.remove('enemy-running');
-    }
-    scene.anims.create({
-      key: 'enemy-running',
-      frames: scene.anims.generateFrameNumbers('enemy-running', { start: 0, end: 2 }),
-      frameRate: 10,
-      repeat: -1
-    });
+    // Health bar foreground (green)
+    this.healthBar = this.scene.add.graphics();
+    this.healthBar.fillStyle(0x00ff00, 1);
+    this.healthBar.fillRect(0, 0, 60, 8);
+    this.healthBar.setDepth(4);
     
-    // Shooting animation
-    if (scene.anims.exists('enemy-shooting')) {
-      scene.anims.remove('enemy-shooting');
-    }
-    scene.anims.create({
-      key: 'enemy-shooting',
-      frames: scene.anims.generateFrameNumbers('enemy-shooting', { start: 0, end: 1 }),
-      frameRate: 12,
-      repeat: 0
-    });
+    // Update health bar position
+    this.updateHealthBarPosition();
+  }
+  
+  updateHealthBarPosition() {
+    if (!this.healthBar || !this.healthBarBackground || !this.sprite) return;
+    
+    // Position the health bar above the enemy
+    const barX = this.sprite.x - 30; // Center the 60px width bar
+    const barY = this.sprite.y - 60; // Position above head
+    
+    this.healthBarBackground.setPosition(barX, barY);
+    this.healthBar.setPosition(barX, barY);
+  }
+  
+  updateHealthBar() {
+    if (!this.healthBar || !this.enemyData) return;
+    
+    // Clear previous graphics
+    this.healthBar.clear();
+    
+    // Calculate width based on current health
+    const healthPercentage = this.enemyData.lives / this.enemyData.maxLives;
+    const barWidth = 60 * healthPercentage;
+    
+    // Draw new health bar
+    this.healthBar.fillStyle(0x00ff00, 1);
+    this.healthBar.fillRect(0, 0, barWidth, 8);
+    
+    // Update position
+    this.updateHealthBarPosition();
   }
   
   update(player) {
     if (!this.sprite || !this.sprite.active || !player || !player.sprite) return;
     
-    // Skip updates if game is paused
-    if (this.scene.gameState && this.scene.gameState.isPaused) return;
+    // Skip updates if game is paused or enemy is dying
+    if ((this.scene.gameState && this.scene.gameState.isPaused) || this.enemyData.isDying) return;
     
     // Update invulnerability status
     if (this.enemyData.isInvulnerable && this.scene.time && 
@@ -113,6 +337,11 @@ class Enemy {
           this.sprite.alpha = 1;
         }
       }
+    }
+    
+    // Update health bar position if enabled
+    if (this.enemyData.showHealthBar) {
+      this.updateHealthBarPosition();
     }
     
     // Check if touching ground and set exact Y position
@@ -139,6 +368,10 @@ class Enemy {
       this.sprite.body.velocity.y = 0;
     }
     
+    // Get the correct animation keys based on enemy type
+    const idleAnim = this.isSpecialBoss ? 'hulk-idle' : 'enemy-idle';
+    const runningAnim = this.isSpecialBoss ? 'hulk-running' : 'enemy-running';
+    
     // Calculate distance to player
     const distanceToPlayer = Phaser.Math.Distance.Between(
       this.sprite.x, this.sprite.y, 
@@ -154,11 +387,40 @@ class Enemy {
       this.facingLeft = directionToPlayer < 0;
       this.sprite.setFlipX(this.facingLeft);
       
-      // Check if it's time to shoot
+      // Define punch range for Hulk (shorter than vision range)
+      const punchRange = this.isSpecialBoss ? 100 : 0;
+      
+      // Check if it's time to attack (shoot or punch)
       const currentTime = this.scene.time.now;
       if (currentTime > this.lastShootTime + this.shootCooldown && !this.isShooting) {
-        // Shoot at player
-        this.shoot();
+        // If special boss (Hulk), only attack if in punch range
+        if (!this.isSpecialBoss || (this.isSpecialBoss && distanceToPlayer <= punchRange)) {
+          // Attack player (shoot for regular enemies, punch for Hulk)
+          this.shoot();
+        } else if (!this.isShooting) {
+          // Not in punch range for Hulk or not shooting for regular enemies
+          // Check if moving would exceed boundaries
+          const newX = this.sprite.x + (directionToPlayer * this.followSpeed * 0.016); // approx one frame movement
+          
+          // Only move if within boundaries
+          if (newX >= this.leftBoundary && newX <= this.rightBoundary) {
+            // Move towards player if not shooting and within boundaries
+            this.sprite.setVelocityX(directionToPlayer * this.followSpeed);
+            
+            // Play running animation
+            if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== runningAnim) {
+              this.sprite.anims.play(runningAnim, true);
+            }
+          } else {
+            // Stop at boundary
+            this.sprite.setVelocityX(0);
+            
+            // Play idle animation when hitting boundary
+            if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== idleAnim) {
+              this.sprite.anims.play(idleAnim, true);
+            }
+          }
+        }
       } else if (!this.isShooting) {
         // Check if moving would exceed boundaries
         const newX = this.sprite.x + (directionToPlayer * this.followSpeed * 0.016); // approx one frame movement
@@ -169,16 +431,16 @@ class Enemy {
           this.sprite.setVelocityX(directionToPlayer * this.followSpeed);
           
           // Play running animation
-          if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'enemy-running') {
-            this.sprite.anims.play('enemy-running', true);
+          if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== runningAnim) {
+            this.sprite.anims.play(runningAnim, true);
           }
         } else {
           // Stop at boundary
           this.sprite.setVelocityX(0);
           
           // Play idle animation when hitting boundary
-          if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'enemy-idle') {
-            this.sprite.anims.play('enemy-idle', true);
+          if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== idleAnim) {
+            this.sprite.anims.play(idleAnim, true);
           }
         }
       }
@@ -197,8 +459,8 @@ class Enemy {
         this.sprite.setVelocityX(directionToHome * (this.followSpeed * 0.5)); // Move slower when returning
         
         // Play running animation
-        if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'enemy-running') {
-          this.sprite.anims.play('enemy-running', true);
+        if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== runningAnim) {
+          this.sprite.anims.play(runningAnim, true);
         }
       } else {
         // At home position, stop and play idle
@@ -206,8 +468,8 @@ class Enemy {
         
         // Ensure we reset to idle animation when home
         if (this.sprite.anims && this.sprite.anims.currentAnim && 
-            this.sprite.anims.currentAnim.key !== 'enemy-idle' && !this.isShooting) {
-          this.sprite.anims.play('enemy-idle', true);
+            this.sprite.anims.currentAnim.key !== idleAnim && !this.isShooting) {
+          this.sprite.anims.play(idleAnim, true);
         }
         
         // Definitely make sure we're at the exact home position
@@ -229,9 +491,10 @@ class Enemy {
     this.isShooting = true;
     this.lastShootTime = this.scene.time.now;
     
-    // Play shooting animation
+    // Play shooting animation based on enemy type
     if (this.sprite && this.sprite.anims) {
-      this.sprite.anims.play('enemy-shooting', true);
+      const shootAnim = this.isSpecialBoss ? 'hulk-punching' : 'enemy-shooting';
+      this.sprite.anims.play(shootAnim, true);
       
       // Auto-reset shooting state after animation completes
       this.scene.time.delayedCall(400, () => {
@@ -239,10 +502,33 @@ class Enemy {
       });
     }
     
+    // Handle Hulk's punch attack differently than regular enemies' shooting
+    if (this.isSpecialBoss) {
+      // Check if player is in punching range (closer than normal shooting)
+      const player = this.scene.player;
+      if (player && player.sprite && player.sprite.active) {
+        const distanceToPlayer = Phaser.Math.Distance.Between(
+          this.sprite.x, this.sprite.y,
+          player.sprite.x, player.sprite.y
+        );
+        
+        // Punching range is shorter than shooting range (100 pixels)
+        if (distanceToPlayer <= 100) {
+          // Deal 2 lives of damage with punch
+          player.loseLife(2);
+          
+          // Update HUD lives display if the method exists
+          if (this.scene.updateLivesDisplay) {
+            this.scene.updateLivesDisplay();
+          }
+        }
+      }
+      return; // Hulk doesn't shoot, so exit early
+    }
+    
     // Get enemy bullets group from scene
     const enemyBullets = this.scene.enemyBullets;
     if (!enemyBullets) {
-      console.log('Enemy bullets group not found');
       this.isShooting = false; // Reset shooting state
       return;
     }
@@ -287,75 +573,19 @@ class Enemy {
         
         // Ensure scene still exists
         if (!this.scene || !this.scene.time) {
-          this.isShooting = false;
           return;
         }
         
-        // Bullet has limited range - destroy after covering less distance than player bullets
-        this.scene.time.delayedCall(800, function() { // Only 800ms vs player's 1200ms
-          if (bullet && bullet.active) {
-            if (this.scene && this.scene.tweens) {
-              this.scene.tweens.add({
-                targets: bullet,
-                alpha: 0,
-                scale: 0.8,
-                duration: 100,
-                onComplete: function() {
-                  if (bullet && bullet.active) bullet.destroy();
-                }
-              });
-            } else {
-              // No tweens available, destroy directly
-              if (bullet && bullet.active) bullet.destroy();
-            }
+        // If bullet collides with platforms/walls, destroy it
+        this.scene.physics.add.collider(bullet, this.scene.groundPlatforms, (bulletSprite) => {
+          if (bulletSprite && bulletSprite.active) {
+            bulletSprite.destroy();
           }
-        }, [], this.scene);
-        
-        // Make sure scene still exists before adding flash effect
-        if (!this.scene || !this.scene.add) {
-          this.isShooting = false;
-          return;
-        }
-        
-        // Add a green muzzle flash
-        const flash = this.scene.add.circle(this.sprite.x + offsetX, this.sprite.y + offsetY, 12, 0x00ff00, 0.8);
-        if (flash) {
-          flash.setDepth(3);
-          flash.setName('enemyMuzzleFlash');
-          
-          // Store flash for tracking
-          if (!this.scene.flashEffects) {
-            this.scene.flashEffects = [];
-          }
-          this.scene.flashEffects.push(flash);
-          
-          // Make sure scene still exists before adding tween
-          if (this.scene && this.scene.tweens) {
-            // Fade out the flash
-            this.scene.tweens.add({
-              targets: flash,
-              alpha: 0,
-              scale: 2,
-              duration: 100,
-              onComplete: () => {
-                if (flash && flash.active) flash.destroy();
-                if (this.scene && this.scene.flashEffects) {
-                  const index = this.scene.flashEffects.indexOf(flash);
-                  if (index > -1) {
-                    this.scene.flashEffects.splice(index, 1);
-                  }
-                }
-              }
-            });
-          }
-        }
+        });
       } catch (error) {
-        console.error("Error in enemy shoot method:", error);
+        console.error('Error creating bullet:', error);
         this.isShooting = false;
       }
-    } else {
-      // No available bullet in the pool, force shooting to complete
-      this.isShooting = false;
     }
   }
   
@@ -394,6 +624,17 @@ class Enemy {
   }
   
   destroy() {
+    // Clean up health bar if it exists
+    if (this.healthBar) {
+      this.healthBar.destroy();
+      this.healthBar = null;
+    }
+    
+    if (this.healthBarBackground) {
+      this.healthBarBackground.destroy();
+      this.healthBarBackground = null;
+    }
+    
     if (this.sprite && this.sprite.active) {
       this.sprite.destroy();
     }
@@ -411,6 +652,11 @@ class Enemy {
     
     // Reduce lives
     this.enemyData.lives -= amount;
+    
+    // Update health bar if enabled
+    if (this.enemyData.showHealthBar) {
+      this.updateHealthBar();
+    }
     
     // Flash red to indicate damage
     if (this.scene && this.scene.tweens && this.sprite) {
@@ -470,11 +716,49 @@ class Enemy {
    * Handle enemy death
    */
   die() {
-    // Drop a heart with 50% chance
-    if (Math.random() < 0.5 && this.scene && this.sprite) {
+    // For Hulk (special boss), play death animation instead of immediately destroying
+    if (this.isSpecialBoss && this.sprite && this.sprite.active) {
+      // Stop any movement
+      this.sprite.setVelocity(0, 0);
+      
+      // Play death animation - the cleanup will happen after animation completes
+      this.sprite.anims.play('hulk-death', true);
+      
+      // Disable enemy behavior during death animation
+      this.enemyData.isDying = true;
+      
+      // Trigger victory scene after a short delay
+      if (this.scene && this.scene.victory) {
+        this.scene.time.delayedCall(500, () => {
+          this.scene.victory();
+        });
+      }
+    } else {
+      // For regular enemies, immediately clean up
+      this.finalCleanup();
+    }
+  }
+  
+  /**
+   * Final cleanup after death (immediately for regular enemies, after animation for Hulk)
+   */
+  finalCleanup() {
+    // Destroy health bar if it exists
+    if (this.healthBar) {
+      this.healthBar.destroy();
+      this.healthBar = null;
+    }
+    
+    if (this.healthBarBackground) {
+      this.healthBarBackground.destroy();
+      this.healthBarBackground = null;
+    }
+    
+    // Drop a heart with 50% chance, but only for regular enemies (not for Hulk)
+    if (!this.isSpecialBoss && Math.random() < 0.5 && this.scene && this.sprite) {
       try {
-        // Safely create heart pickup
-        const heart = new HeartPickup(this.scene, this.sprite.x, this.sprite.y, this.scene.player);
+        // Create heart pickup and add to scene
+        new HeartPickup(this.scene, this.sprite.x, this.sprite.y, this.scene.player);
       } catch (error) {
         console.error("Error creating heart pickup:", error);
       }

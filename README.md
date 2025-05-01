@@ -1,70 +1,53 @@
-# Getting Started with Create React App
+# Smash Protocol
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**Smash Protocol** es un juego retro estilo *MegaMan*, protagonizado por una versión tipo Iron Man, cuyo objetivo es derrotar a Hulk y a sus secuaces. Está diseñado con estética pixel art y controles simples, pensados para una jugabilidad ágil y divertida.
 
-## Available Scripts
+## 🎮 Mecánica del juego
 
-In the project directory, you can run:
+- **Movimiento:**
+  - `A` – Mover a la izquierda
+  - `D` – Mover a la derecha
+  - `W` – Saltar
+  - `E` – Disparar
+  - `P` – Menú de pausa
 
-### `npm start`
+Controlas a Ironman, un héroe con habilidades tecnológicas avanzadas, enfrentando a enemigos cada vez más poderosos hasta llegar al enfrentamiento final contra Hulk.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🛠️ Tecnologías utilizadas
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- Motor de desarrollo: *Phaser*
+- Lenguaje principal: *JavaScript*
+- Herramientas IA: Claude 3.7
 
-### `npm test`
+## 🤖 Uso de Inteligencia Artificial
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Este proyecto fue desarrollado utilizando **Claude 3.7**, una herramienta de Inteligencia Artificial que asistió durante gran parte del proceso. A continuación, se detallan los usos específicos:
 
-### `npm run build`
+- Instalación y configuración del entorno del proyecto
+- Generación de lógica para personajes, enemigos y sus comportamientos
+- Ayuda con pruebas de funcionalidades clave
+- Optimización de código para rendimiento
+- Asistencia con depuración (debugging) de errores y fallos
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 📊 Porcentaje estimado de código generado con IA
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Aproximadamente el **95% del código** fue generado o asistido directamente por la IA.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## 📄 Informe breve
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Desafíos enfrentados
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Uno de los mayores desafíos durante el desarrollo fue que la IA no siempre interpretaba correctamente las solicitudes. Por lo regular generaba código redundante o innecesario, repetía funciones, o no ofrecía una forma eficiente de mejorar funciones ya existentes. Esto me obligaba a replantear constantemente los prompts y a pedir las cosas de forma distinta.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Uso de la IA para resolverlos
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+A pesar de esas dificultades, el uso de Claude 3.7 me permitió evitar muchas tareas tediosas de lógica y desarrollo desde cero. En particular, su ayuda con el comportamiento de los enemigos y la estructura general del juego fue crucial para acelerar el proceso de construcción. Sin esta herramienta, el tiempo de desarrollo habría sido considerablemente mayor.
 
-## Learn More
+### Decisiones técnicas importantes
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Una decisión importante fue aceptar que la IA funcionaba mejor al trabajar en partes pequeñas del proyecto, en lugar de intentar generar archivos o estructuras completas de una sola vez. Al dividir el proyecto en componentes más simples y ser más específico con los prompts, logré obtener resultados más útiles y reutilizables.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)

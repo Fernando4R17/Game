@@ -95,6 +95,18 @@ class HUD {
     }
     
     try {
+      // Create semi-transparent dark background
+      this.gameOverBackground = this.scene.add.rectangle(
+        this.scene.cameras.main.width / 2,
+        this.scene.cameras.main.height / 2,
+        this.scene.cameras.main.width,
+        this.scene.cameras.main.height,
+        0x000000,
+        0.7
+      );
+      this.gameOverBackground.setScrollFactor(0);
+      this.gameOverBackground.setDepth(9);
+      
       // Create game over text
       this.gameOverText = this.scene.add.text(
         this.scene.cameras.main.width / 2,
@@ -133,6 +145,63 @@ class HUD {
     }
   }
   
+  showVictory() {
+    // Check if victory text already exists
+    if (this.victoryText) {
+      return;
+    }
+    
+    try {
+      // Create semi-transparent dark background
+      this.victoryBackground = this.scene.add.rectangle(
+        this.scene.cameras.main.width / 2,
+        this.scene.cameras.main.height / 2,
+        this.scene.cameras.main.width,
+        this.scene.cameras.main.height,
+        0x000000,
+        0.7
+      );
+      this.victoryBackground.setScrollFactor(0);
+      this.victoryBackground.setDepth(9);
+      
+      // Create victory text
+      this.victoryText = this.scene.add.text(
+        this.scene.cameras.main.width / 2,
+        this.scene.cameras.main.height / 2 - 50,
+        'YOU WON!',
+        {
+          fontFamily: 'Arial',
+          fontSize: '48px',
+          color: '#00ff00',
+          stroke: '#000000',
+          strokeThickness: 6
+        }
+      );
+      this.victoryText.setOrigin(0.5);
+      this.victoryText.setScrollFactor(0);
+      this.victoryText.setDepth(10);
+      
+      // Create restart instruction text
+      this.victoryRestartText = this.scene.add.text(
+        this.scene.cameras.main.width / 2,
+        this.scene.cameras.main.height / 2 + 20,
+        'Press ENTER to return to Main Menu',
+        {
+          fontFamily: 'Arial',
+          fontSize: '20px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }
+      );
+      this.victoryRestartText.setOrigin(0.5);
+      this.victoryRestartText.setScrollFactor(0);
+      this.victoryRestartText.setDepth(10);
+    } catch (error) {
+      console.error("Error showing victory screen:", error);
+    }
+  }
+  
   hideGameOver() {
     if (this.gameOverText) {
       this.gameOverText.destroy();
@@ -142,6 +211,28 @@ class HUD {
     if (this.restartText) {
       this.restartText.destroy();
       this.restartText = null;
+    }
+    
+    if (this.gameOverBackground) {
+      this.gameOverBackground.destroy();
+      this.gameOverBackground = null;
+    }
+  }
+  
+  hideVictory() {
+    if (this.victoryText) {
+      this.victoryText.destroy();
+      this.victoryText = null;
+    }
+    
+    if (this.victoryRestartText) {
+      this.victoryRestartText.destroy();
+      this.victoryRestartText = null;
+    }
+    
+    if (this.victoryBackground) {
+      this.victoryBackground.destroy();
+      this.victoryBackground = null;
     }
   }
   
@@ -161,6 +252,9 @@ class HUD {
     
     // Hide game over text if shown
     this.hideGameOver();
+    
+    // Hide victory text if shown
+    this.hideVictory();
   }
 }
 

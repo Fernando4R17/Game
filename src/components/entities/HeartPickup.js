@@ -1,6 +1,12 @@
-import Phaser from 'phaser';
-
 class HeartPickup {
+  /**
+   * Static method to preload heart pickup assets
+   * @param {Phaser.Scene} scene - The scene to load assets into
+   */
+  static preloadAssets(scene) {
+    scene.load.image('heart', '/assets/objects/Heart.png');
+  }
+
   constructor(scene, x, y, player) {
     this.scene = scene;
     this.player = player;

@@ -1,6 +1,34 @@
-import Phaser from 'phaser';
-
 class Player {
+  /**
+   * Static method to preload all player assets
+   * @param {Phaser.Scene} scene - The scene to load assets into
+   */
+  static preloadAssets(scene) {
+    // Load player sprites
+    scene.load.spritesheet('ironman-idle', 
+      '/assets/characters/Player/Iron-idle.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 2 }
+    );
+    
+    scene.load.spritesheet('ironman-running', 
+      '/assets/characters/Player/Iron-running.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
+    );
+    
+    scene.load.spritesheet('ironman-shooting', 
+      '/assets/characters/Player/Iron-shooting.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 3 }
+    );
+    
+    scene.load.spritesheet('ironman-death', 
+      '/assets/characters/Player/Iron-death.png',
+      { frameWidth: 65, frameHeight: 60, startFrame: 0, endFrame: 2 }
+    );
+    
+    // Load projectile
+    scene.load.image('blast', '/assets/objects/blast.png');
+  }
+
   constructor(scene, x, y) {
     this.scene = scene;
     
@@ -52,7 +80,6 @@ class Player {
       
       // Listen for animation complete events
       this.sprite.on('animationcomplete-death', () => {
-        console.log("Player death animation completed");
         this.playerData.isPlayingDeathAnimation = false;
         this.playerData.isGameOver = true;
         
@@ -63,7 +90,6 @@ class Player {
       });
       
       this.sprite.on('animationcomplete-shoot', () => {
-        console.log("Player shoot animation completed");
         this.playerData.isShooting = false;
         // Return to idle or running animation based on movement
         if (this.playerData.isMoving) {
@@ -314,7 +340,6 @@ class Player {
     
     // Reduce lives by the amount (default 1)
     this.playerData.lives -= amount;
-    console.log(`Player lost ${amount} lives! Lives remaining: ${this.playerData.lives}`);
     
     // Create initial hit flash effect (shorter than invulnerability period)
     if (this.sprite && this.sprite.active) {
@@ -347,8 +372,6 @@ class Player {
   
   die() {
     if (!this.playerData.isPlayingDeathAnimation && !this.playerData.isGameOver) {
-      console.log("Player died!");
-      
       // Set death animation flag
       this.playerData.isPlayingDeathAnimation = true;
       

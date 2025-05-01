@@ -34,8 +34,8 @@ class EnemyManager {
     }
   }
   
-  createEnemy(x, y, leftBoundary, rightBoundary) {
-    const enemy = new Enemy(this.scene, x, y, leftBoundary, rightBoundary);
+  createEnemy(x, y, leftBoundary, rightBoundary, isSpecialBoss = false) {
+    const enemy = new Enemy(this.scene, x, y, leftBoundary, rightBoundary, isSpecialBoss);
     this.enemies.push(enemy);
     this.group.add(enemy.sprite);
     
@@ -214,8 +214,6 @@ class EnemyManager {
   
   destroy() {
     try {
-      console.log("EnemyManager destroy called");
-      
       // Clear and destroy all enemies
       this.clearEnemies();
       
