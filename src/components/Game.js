@@ -335,6 +335,13 @@ class MainScene extends Phaser.Scene {
         
         // Destroy the bullet
         bullet.destroy();
+        
+        // Add a delayed ground check to prevent falling through floor
+        this.time.delayedCall(200, () => {
+          if (this.player && this.player.resetToGround) {
+            this.player.resetToGround(true);
+          }
+        });
       });
     }
     
@@ -496,19 +503,25 @@ class MainScene extends Phaser.Scene {
       this.specialEnemy.sprite.setTint(0xaaccff);
     }
     
-    // Pause all bullets
+    // Pause all bullets - store velocities for resuming later
     if (this.bullets) {
       this.bullets.getChildren().forEach(bullet => {
         if (bullet.active) {
+          // Store original velocity before pausing
+          bullet.pausedVelocityX = bullet.body.velocity.x;
+          bullet.pausedVelocityY = bullet.body.velocity.y;
           bullet.body.setVelocity(0, 0);
         }
       });
     }
     
-    // Pause enemy bullets
+    // Pause enemy bullets - store velocities for resuming later
     if (this.enemyBullets) {
       this.enemyBullets.getChildren().forEach(bullet => {
         if (bullet.active) {
+          // Store original velocity before pausing
+          bullet.pausedVelocityX = bullet.body.velocity.x;
+          bullet.pausedVelocityY = bullet.body.velocity.y;
           bullet.body.setVelocity(0, 0);
         }
       });
@@ -536,6 +549,32 @@ class MainScene extends Phaser.Scene {
     
     // Resume all animations
     this.anims.resumeAll();
+    
+    // Restore player bullet velocities
+    if (this.bullets) {
+      this.bullets.getChildren().forEach(bullet => {
+        if (bullet.active && bullet.pausedVelocityX !== undefined) {
+          // Restore the original velocity
+          bullet.body.setVelocity(bullet.pausedVelocityX, bullet.pausedVelocityY);
+          // Clean up the temporary properties
+          delete bullet.pausedVelocityX;
+          delete bullet.pausedVelocityY;
+        }
+      });
+    }
+    
+    // Restore enemy bullet velocities
+    if (this.enemyBullets) {
+      this.enemyBullets.getChildren().forEach(bullet => {
+        if (bullet.active && bullet.pausedVelocityX !== undefined) {
+          // Restore the original velocity
+          bullet.body.setVelocity(bullet.pausedVelocityX, bullet.pausedVelocityY);
+          // Clean up the temporary properties
+          delete bullet.pausedVelocityX;
+          delete bullet.pausedVelocityY;
+        }
+      });
+    }
     
     // Resume physics
     this.physics.resume();
@@ -780,6 +819,9 @@ class MainScene extends Phaser.Scene {
           this.player.loseLife();
           this.updateLivesDisplay();
           this.player.sprite.setPosition(400, 400); // Reset position
+        } else if (this.player.sprite.y > this.physics.world.bounds.height - 50) {
+          // If player is near the bottom but not off-screen, ensure they're reset to ground level
+          this.player.resetToGround(true);
         }
         
         // Check if player is dead

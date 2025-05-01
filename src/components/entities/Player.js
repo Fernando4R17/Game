@@ -358,6 +358,20 @@ class Player {
           }
         }
       });
+      
+      // Apply a small upward knockback to prevent falling through floor
+      // This gives player a small hop when hit
+      this.sprite.setVelocityY(-150);
+      
+      // Ensure player position doesn't go below ground
+      this.resetToGround(false);
+      
+      // Add a slight delay to check ground position again (after physics update)
+      if (this.scene && this.scene.time) {
+        this.scene.time.delayedCall(100, () => {
+          this.resetToGround(true);
+        });
+      }
     }
     
     // Make invulnerable briefly (reduced from 1500ms)
@@ -367,6 +381,41 @@ class Player {
     if (this.playerData.lives <= 0) {
       this.playerData.lives = 0;
       this.die();
+    }
+  }
+  
+  /**
+   * Reset player to proper ground level if they're below it
+   * @param {boolean} forceReset - Whether to force reset even if not below ground
+   */
+  resetToGround(forceReset = false) {
+    if (!this.sprite || !this.sprite.active) return;
+    
+    // Calculate the proper ground level
+    let groundLevel;
+    
+    if (this.scene.platforms && 
+        typeof this.scene.platforms.groundPlatformY !== 'undefined' && 
+        typeof this.scene.platforms.groundPlatformHeight !== 'undefined') {
+      // Use platform properties
+      const platformY = this.scene.platforms.groundPlatformY;
+      const platformHeight = this.scene.platforms.groundPlatformHeight;
+      groundLevel = platformY - (platformHeight / 2) - 35;
+    } else {
+      // Fallback calculation
+      const platformHeight = 20;
+      groundLevel = this.scene.physics.world.bounds.height - platformHeight - 30;
+    }
+    
+    // Check if player is below ground level or force reset is enabled
+    if (forceReset || this.sprite.y > groundLevel) {
+      // Reset to ground level
+      this.sprite.y = groundLevel;
+      
+      // Stop any downward velocity to prevent falling again
+      if (this.sprite.body.velocity.y > 0) {
+        this.sprite.body.velocity.y = 0;
+      }
     }
   }
   
